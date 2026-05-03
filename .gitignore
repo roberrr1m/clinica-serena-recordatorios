@@ -1,0 +1,5 @@
+.env
+credentials.json
+jobs.sqlite
+__pycache__/
+*.pyc
