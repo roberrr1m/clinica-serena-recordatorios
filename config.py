@@ -21,6 +21,8 @@ GOOGLE_CREDENTIALS_FILE  = os.getenv("GOOGLE_CREDENTIALS_FILE", "credentials.jso
 
 # Calendly
 CALENDLY_WEBHOOK_SECRET = os.getenv("CALENDLY_WEBHOOK_SECRET", "")
+CALENDLY_TOKEN          = os.getenv("CALENDLY_TOKEN", "")
+CALENDLY_USER_URI       = os.getenv("CALENDLY_USER_URI", "https://api.calendly.com/users/92bbe628-65ef-4a4b-b20a-ae74350ab914")
 
 # Coordinación con el bot principal (Skill 2)
 BOT_SERVICE_URL = os.getenv("BOT_SERVICE_URL", "")

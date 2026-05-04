@@ -28,7 +28,11 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    get_scheduler()
+    s = get_scheduler()
+    # Polling de Calendly cada 5 minutos
+    from calendly_poller import poll_calendly, poll_cancelaciones
+    s.add_job(poll_calendly,      "interval", minutes=5,  id="poll_calendly",       replace_existing=True)
+    s.add_job(poll_cancelaciones, "interval", minutes=15, id="poll_cancelaciones",  replace_existing=True)
     yield
 
 
