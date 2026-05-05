@@ -7,11 +7,11 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import httpx
+import pytz
 
-from config import CALENDLY_TOKEN, CALENDLY_USER_URI
+from config import CALENDLY_TOKEN, CALENDLY_USER_URI, CLINICA_TIMEZONE, TELEGRAM_OWNER_CHAT_ID
 from sheets import registrar_cita, actualizar_estado, get_citas_sheet, get_chat_id_por_telefono
 from telegram_client import send_message, msg_confirmacion_reserva, msg_cancelacion_calendly, msg_cancelacion_dueno
-from config import TELEGRAM_OWNER_CHAT_ID
 import scheduler as sched_module
 
 logger = logging.getLogger(__name__)
@@ -108,7 +108,8 @@ def _process_new_event(cita_id: str, event_uri: str, event: dict):
     if not start_raw:
         return
 
-    dt = datetime.fromisoformat(start_raw.replace("Z", "+00:00")).astimezone()
+    tz_clinica = pytz.timezone(CLINICA_TIMEZONE)
+    dt = datetime.fromisoformat(start_raw.replace("Z", "+00:00")).astimezone(tz_clinica)
     dia_semana = DIAS_ES[dt.weekday()]
     fecha = dt.strftime("%d/%m/%Y")
     hora  = dt.strftime("%H:%M")
