@@ -28,28 +28,28 @@ logger = logging.getLogger(__name__)
 
 def _reschedule_pending_reminders():
     """Re-agenda recordatorios al arrancar (SQLite es efímero en Render)."""
-    from zoneinfo import ZoneInfo
-    from datetime import datetime, timezone
-    from sheets import get_citas_sheet
-    tz = ZoneInfo(CLINICA_TIMEZONE)
     try:
+        import pytz
+        from datetime import datetime, timezone
+        from sheets import get_citas_sheet
+        tz = pytz.timezone(CLINICA_TIMEZONE)
         ws = get_citas_sheet()
         rows = ws.get_all_values()[1:]
+        for row in rows:
+            if len(row) < 7 or row[6] != "pendiente":
+                continue
+            cita_id = row[0]
+            if not cita_id:
+                continue
+            try:
+                naive = datetime.strptime(f"{row[4]} {row[5]}", "%d/%m/%Y %H:%M")
+                dt = tz.localize(naive)
+                sched_module.programar_recordatorio_24h(cita_id, dt.astimezone(timezone.utc))
+                logger.info("Recordatorio re-agendado para cita %s (%s %s)", cita_id, row[4], row[5])
+            except Exception as exc:
+                logger.warning("Error re-agendando cita %s: %s", cita_id, exc)
     except Exception as exc:
-        logger.warning("No se pudo leer Sheets al arrancar: %s", exc)
-        return
-    for row in rows:
-        if len(row) < 7 or row[6] != "pendiente":
-            continue
-        cita_id = row[0]
-        if not cita_id:
-            continue
-        try:
-            dt = datetime.strptime(f"{row[4]} {row[5]}", "%d/%m/%Y %H:%M").replace(tzinfo=tz)
-            sched_module.programar_recordatorio_24h(cita_id, dt.astimezone(timezone.utc))
-            logger.info("Recordatorio re-agendado para cita %s (%s %s)", cita_id, row[4], row[5])
-        except Exception as exc:
-            logger.warning("Error re-agendando cita %s: %s", cita_id, exc)
+        logger.error("_reschedule_pending_reminders falló: %s", exc)
 
 
 @asynccontextmanager
