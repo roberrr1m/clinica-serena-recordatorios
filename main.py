@@ -26,6 +26,13 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 
+def _keepalive():
+    try:
+        httpx.get(f"{SERVICE_URL}/health", timeout=10)
+    except Exception:
+        pass
+
+
 def _reschedule_pending_reminders():
     """Re-agenda recordatorios al arrancar (SQLite es efímero en Render)."""
     try:
@@ -61,11 +68,6 @@ async def lifespan(app: FastAPI):
     s.add_job(poll_cancelaciones, "interval", minutes=15, id="poll_cancelaciones",  replace_existing=True)
     # Keepalive: autopinga /health cada 10 min para que Render no duerma el servicio
     if SERVICE_URL:
-        def _keepalive():
-            try:
-                httpx.get(f"{SERVICE_URL}/health", timeout=10)
-            except Exception:
-                pass
         s.add_job(_keepalive, "interval", minutes=10, id="keepalive", replace_existing=True)
     # Re-agenda recordatorios pendientes (SQLite se borra en cada deploy)
     _reschedule_pending_reminders()
