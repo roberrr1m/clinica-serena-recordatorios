@@ -8,7 +8,9 @@ DIRECCION        = "Calle Ejemplo 12, Sevilla"
 GOOGLE_MAPS_URL  = "https://maps.google.com/?q=Clinica+Serena+Sevilla"
 CALENDLY_URL     = "https://calendly.com/roberto-xylenai/30min"
 TELEFONO_CLINICA = "+34 954 000 000"
-HORA_RECORDATORIO = "10:00"   # hora del recordatorio 24h antes
+HORA_RECORDATORIO = "10:00"   # hora del recordatorio 24h antes (hora local de la clínica)
+CLINICA_TIMEZONE  = os.getenv("CLINICA_TIMEZONE", "Europe/Madrid")
+SERVICE_URL       = os.getenv("SERVICE_URL", "")   # URL pública del servicio (para keepalive)
 
 # Telegram
 TELEGRAM_TOKEN          = os.getenv("TELEGRAM_TOKEN", "")

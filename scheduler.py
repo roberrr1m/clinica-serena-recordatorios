@@ -1,11 +1,12 @@
 import logging
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
 
-from config import HORA_RECORDATORIO
+from config import HORA_RECORDATORIO, CLINICA_TIMEZONE
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +27,12 @@ def get_scheduler() -> BackgroundScheduler:
 # ── helpers internos ────────────────────────────────────────────────────────
 
 def _hora_recordatorio_24h(cita_dt: datetime) -> datetime:
-    """10:00h del día anterior a la cita."""
+    """10:00h (hora local de la clínica) del día anterior a la cita."""
+    tz = ZoneInfo(CLINICA_TIMEZONE)
     h, m = map(int, HORA_RECORDATORIO.split(":"))
-    dia_anterior = (cita_dt - timedelta(days=1)).date()
-    return datetime(dia_anterior.year, dia_anterior.month, dia_anterior.day,
-                    h, m, tzinfo=cita_dt.tzinfo)
+    cita_local = cita_dt.astimezone(tz)
+    dia_anterior = (cita_local - timedelta(days=1)).date()
+    return datetime(dia_anterior.year, dia_anterior.month, dia_anterior.day, h, m, tzinfo=tz)
 
 
 def _run_job(fn, *args):

@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import PlainTextResponse
 
 from calendly import verify_signature, parse_invitee_created, parse_invitee_canceled
-from config import TELEGRAM_OWNER_CHAT_ID, TELEGRAM_TOKEN
+from config import TELEGRAM_OWNER_CHAT_ID, TELEGRAM_TOKEN, SERVICE_URL, CLINICA_TIMEZONE
 from scheduler import get_scheduler
 from sheets import (
     registrar_cita, actualizar_estado, get_citas_hoy,
@@ -26,6 +26,32 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 
+def _reschedule_pending_reminders():
+    """Re-agenda recordatorios al arrancar (SQLite es efímero en Render)."""
+    from zoneinfo import ZoneInfo
+    from datetime import datetime, timezone
+    from sheets import get_citas_sheet
+    tz = ZoneInfo(CLINICA_TIMEZONE)
+    try:
+        ws = get_citas_sheet()
+        rows = ws.get_all_values()[1:]
+    except Exception as exc:
+        logger.warning("No se pudo leer Sheets al arrancar: %s", exc)
+        return
+    for row in rows:
+        if len(row) < 7 or row[6] != "pendiente":
+            continue
+        cita_id = row[0]
+        if not cita_id:
+            continue
+        try:
+            dt = datetime.strptime(f"{row[4]} {row[5]}", "%d/%m/%Y %H:%M").replace(tzinfo=tz)
+            sched_module.programar_recordatorio_24h(cita_id, dt.astimezone(timezone.utc))
+            logger.info("Recordatorio re-agendado para cita %s (%s %s)", cita_id, row[4], row[5])
+        except Exception as exc:
+            logger.warning("Error re-agendando cita %s: %s", cita_id, exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     s = get_scheduler()
@@ -33,6 +59,16 @@ async def lifespan(app: FastAPI):
     from calendly_poller import poll_calendly, poll_cancelaciones
     s.add_job(poll_calendly,      "interval", minutes=5,  id="poll_calendly",       replace_existing=True)
     s.add_job(poll_cancelaciones, "interval", minutes=15, id="poll_cancelaciones",  replace_existing=True)
+    # Keepalive: autopinga /health cada 10 min para que Render no duerma el servicio
+    if SERVICE_URL:
+        def _keepalive():
+            try:
+                httpx.get(f"{SERVICE_URL}/health", timeout=10)
+            except Exception:
+                pass
+        s.add_job(_keepalive, "interval", minutes=10, id="keepalive", replace_existing=True)
+    # Re-agenda recordatorios pendientes (SQLite se borra en cada deploy)
+    _reschedule_pending_reminders()
     yield
 
 
